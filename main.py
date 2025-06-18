@@ -11,6 +11,7 @@ from openpyxl import Workbook
 
 app = FastAPI()
 
+# CORS para frontend en GitHub Pages
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://jhowmsm.github.io"],
@@ -33,15 +34,17 @@ async def procesar_pdf(
 
     columna_x = {}
     resultados = {ref: [] for ref in referencias}
-    nie_encontrados = set()
-    nie_patron = re.compile(r"[XY]\d{7}W")
-
     filename = file.filename
     temp_pdf = f"/tmp/{filename}"
 
+    # Guardar archivo temporalmente
     with open(temp_pdf, "wb") as f:
         f.write(await file.read())
 
+    nie_patron = re.compile(r"[XY]\d{7}W")
+    nie_encontrados = set()
+
+    # Procesar PDF
     with fitz.open(temp_pdf) as doc:
         for pagina in doc:
             bloques = pagina.get_text("dict")["blocks"]
@@ -51,34 +54,40 @@ async def procesar_pdf(
                         texto = span["text"].strip()
                         x = span["bbox"][0]
 
+                        # Detectar NIE/NIF en cualquier parte del texto
+                        encontrados = nie_patron.findall(texto)
+                        for codigo in encontrados:
+                            nie_encontrados.add(codigo)
+
                         for ref in referencias:
                             if ref in texto and ref not in columna_x:
                                 columna_x[ref] = x
                             if ref in columna_x and abs(x - columna_x[ref]) <= 5:
                                 if texto not in exclusiones.get(ref, []):
                                     resultados[ref].append(texto)
-                                    if ref == "NIF/CIF" and nie_patron.fullmatch(texto):
-                                        nie_encontrados.add(texto)
 
+    # Normalizar longitud
     max_len = max(len(vals) for vals in resultados.values())
     for ref in referencias:
         while len(resultados[ref]) < max_len:
             resultados[ref].append("")
 
+    # Crear Excel
     wb = Workbook()
-    ws1 = wb.active
-    ws1.title = "Resultados"
-    ws1.append(referencias)
-    for fila in zip(*[resultados[ref] for ref in referencias]):
-        ws1.append(list(fila))
 
-    ws2 = wb.create_sheet("Advertencias")
+    # Hoja principal con resultados
+    ws = wb.active
+    ws.title = "Resultados"
+    ws.append(referencias)
+    for fila in zip(*[resultados[ref] for ref in referencias]):
+        ws.append(list(fila))
+
+    # Segunda hoja con advertencias
     if nie_encontrados:
-        ws2.append(["Advertencia sobre NIE/NIF"])
-        for item in sorted(nie_encontrados):
-            ws2.append([item])
-    else:
-        ws2.append(["No se encontraron NIE/NIF con patrón [XY]dddddddW."])
+        ws2 = wb.create_sheet(title="Advertencias")
+        ws2.append(["NIE/NIF detectado"])
+        for codigo in sorted(nie_encontrados):
+            ws2.append([codigo])
 
     output_path = f"/tmp/resultado_{uuid.uuid4().hex}.xlsx"
     wb.save(output_path)
