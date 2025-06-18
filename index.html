@@ -64,12 +64,23 @@
       font-weight: bold;
       cursor: pointer;
     }
+    .inputs-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
     .columna-container {
       background: #fff;
       border: 1px solid #ccc;
       padding: 1rem;
       border-radius: 8px;
-      margin-bottom: 1rem;
+      width: calc(50% - 1rem);
+      box-sizing: border-box;
+    }
+    @media (max-width: 768px) {
+      .columna-container {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -87,7 +98,7 @@
     <button onclick="generarInputs()">Generar campos</button>
   </div>
 
-  <div class="section" id="inputsContainer"></div>
+  <div class="section inputs-grid" id="inputsContainer"></div>
 
   <div class="section">
     <label>Palabras clave sugeridas:</label>
@@ -130,52 +141,52 @@
       }
     }
 
-async function subir() {
-  const file = document.getElementById('fileInput').files[0];
-  const referencias = [];
-  const exclusiones = {};
-  const bloques = document.querySelectorAll(".columna-container");
+    async function subir() {
+      const file = document.getElementById('fileInput').files[0];
+      const referencias = [];
+      const exclusiones = {};
+      const bloques = document.querySelectorAll(".columna-container");
 
-  bloques.forEach(bloque => {
-    const ref = bloque.querySelector(".referencia").value.trim();
-    const excluir = bloque.querySelector(".excluir").value.trim().split(",").map(e => e.trim()).filter(Boolean);
-    if (ref) {
-      referencias.push(ref);
-      exclusiones[ref] = excluir;
+      bloques.forEach(bloque => {
+        const ref = bloque.querySelector(".referencia").value.trim();
+        const excluir = bloque.querySelector(".excluir").value.trim().split(",").map(e => e.trim()).filter(Boolean);
+        if (ref) {
+          referencias.push(ref);
+          exclusiones[ref] = excluir;
+        }
+      });
+
+      if (!file || referencias.length === 0) return alert("Selecciona un archivo y completa las referencias.");
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("referencias", JSON.stringify(referencias));
+      formData.append("exclusiones", JSON.stringify(exclusiones));
+
+      document.getElementById("estado").innerText = "Procesando...";
+
+      try {
+        const response = await fetch("https://tablas-pdf.onrender.com/procesar/", {
+          method: "POST",
+          body: formData
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "resultado.xlsx";
+          a.click();
+          document.getElementById("estado").innerText = "¡Procesado con éxito!";
+        } else {
+          document.getElementById("estado").innerText = "Error al procesar.";
+        }
+      } catch (e) {
+        document.getElementById("estado").innerText = "Error de conexión.";
+        console.error(e);
+      }
     }
-  });
-
-  if (!file || referencias.length === 0) return alert("Selecciona un archivo y completa las referencias.");
-
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("referencias", JSON.stringify(referencias));
-  formData.append("exclusiones", JSON.stringify(exclusiones)); // <== ¡AGREGA esto!
-
-  document.getElementById("estado").innerText = "Procesando...";
-
-  try {
-    const response = await fetch("https://tablas-pdf.onrender.com/procesar/", {
-      method: "POST",
-      body: formData
-    });
-
-    if (response.ok) {
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "resultado.xlsx";
-      a.click();
-      document.getElementById("estado").innerText = "¡Procesado con éxito!";
-    } else {
-      document.getElementById("estado").innerText = "Error al procesar.";
-    }
-  } catch (e) {
-    document.getElementById("estado").innerText = "Error de conexión.";
-    console.error(e);
-  }
-}
   </script>
 </body>
 </html>
