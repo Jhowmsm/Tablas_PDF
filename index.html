@@ -5,21 +5,46 @@
   <title>Extractor de columnas PDF</title>
 </head>
 <body>
-  <h2>Sube un PDF y escribe la columna que deseas extraer</h2>
+  <h2>Sube un PDF y selecciona cuántas columnas deseas extraer</h2>
+
   <input type="file" id="fileInput" /><br><br>
-  <input type="text" id="referencia" placeholder="Ej: Situación Admva." /><br><br>
+
+  <label for="numColumnas">¿Cuántas columnas quieres extraer?</label><br>
+  <input type="number" id="numColumnas" min="1" max="10" value="1" />
+  <button onclick="generarCampos()">Generar campos</button><br><br>
+
+  <div id="camposReferencias"></div><br>
+
   <button onclick="subir()">Procesar</button>
   <p id="estado"></p>
 
   <script>
+    function generarCampos() {
+      const num = parseInt(document.getElementById('numColumnas').value);
+      const contenedor = document.getElementById('camposReferencias');
+      contenedor.innerHTML = "";
+
+      for (let i = 0; i < num; i++) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = `Referencia columna ${i + 1}`;
+        input.name = "referencia";
+        input.required = true;
+        contenedor.appendChild(input);
+        contenedor.appendChild(document.createElement("br"));
+      }
+    }
+
     async function subir() {
       const file = document.getElementById('fileInput').files[0];
-      const referencia = document.getElementById('referencia').value;
-      if (!file || !referencia) return alert("Selecciona un archivo y escribe una referencia.");
+      const referencias = [...document.querySelectorAll("input[name='referencia']")].map(el => el.value.trim());
+      if (!file || referencias.some(ref => !ref)) {
+        return alert("Selecciona un archivo e ingresa todas las referencias.");
+      }
 
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("referencia", referencia);
+      formData.append("referencias", JSON.stringify(referencias));
 
       document.getElementById("estado").innerText = "Procesando...";
 
