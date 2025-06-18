@@ -2,15 +2,15 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
-from openpyxl import Workbook
 import fitz  # PyMuPDF
-import csv
 import os
 import uuid
 import json
+from openpyxl import Workbook
 
 app = FastAPI()
 
+# CORS para frontend en GitHub Pages
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://jhowmsm.github.io"],
@@ -25,18 +25,20 @@ async def procesar_pdf(
     referencias: str = Form(...)
 ):
     try:
-        referencias = json.loads(referencias)  # ✅ Solo una vez
-    except Exception as e:
-        return {"error": f"No se pudo leer las referencias: {str(e)}"}
+        referencias = json.loads(referencias)
+    except Exception:
+        return {"error": "No se pudo leer las referencias"}
 
     columna_x = {}
     resultados = {ref: [] for ref in referencias}
     filename = file.filename
     temp_pdf = f"/tmp/{filename}"
 
+    # Guardar archivo PDF temporalmente
     with open(temp_pdf, "wb") as f:
         f.write(await file.read())
 
+    # Procesar PDF
     with fitz.open(temp_pdf) as doc:
         for pagina in doc:
             bloques = pagina.get_text("dict")["blocks"]
@@ -58,18 +60,20 @@ async def procesar_pdf(
         while len(resultados[ref]) < max_len:
             resultados[ref].append("")
 
-    excel_path = f"/tmp/resultado_{uuid.uuid4().hex}.xlsx"
+    # Crear Excel
     wb = Workbook()
     ws = wb.active
+    ws.title = "Resultados"
 
     # Escribir encabezados
     ws.append(referencias)
 
     # Escribir filas
-    filas = zip(*[resultados[ref] for ref in referencias])
-    for fila in filas:
-        ws.append(fila)
+    for fila in zip(*[resultados[ref] for ref in referencias]):
+        ws.append(list(fila))
 
+    # Guardar archivo Excel
+    excel_path = f"/tmp/resultado_{uuid.uuid4().hex}.xlsx"
     wb.save(excel_path)
 
     return FileResponse(excel_path, filename="resultado.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
