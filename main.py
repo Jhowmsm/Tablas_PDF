@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
+from typing import Dict
 import fitz  # PyMuPDF
 import os
 import uuid
@@ -22,19 +22,21 @@ app.add_middleware(
 @app.post("/procesar/")
 async def procesar_pdf(
     file: UploadFile = File(...),
-    referencias: str = Form(...)
+    referencias: str = Form(...),
+    exclusiones: str = Form("{}")  # Diccionario en formato JSON con exclusiones
 ):
     try:
         referencias = json.loads(referencias)
+        exclusiones = json.loads(exclusiones)
     except Exception:
-        return {"error": "No se pudo leer las referencias"}
+        return {"error": "No se pudo leer referencias o exclusiones"}
 
     columna_x = {}
     resultados = {ref: [] for ref in referencias}
     filename = file.filename
     temp_pdf = f"/tmp/{filename}"
 
-    # Guardar archivo PDF temporalmente
+    # Guardar archivo temporalmente
     with open(temp_pdf, "wb") as f:
         f.write(await file.read())
 
@@ -52,9 +54,10 @@ async def procesar_pdf(
                             if ref in texto and ref not in columna_x:
                                 columna_x[ref] = x
                             if ref in columna_x and abs(x - columna_x[ref]) <= 5:
-                                resultados[ref].append(texto)
+                                if texto not in exclusiones.get(ref, []):
+                                    resultados[ref].append(texto)
 
-    # Normalizar longitud de columnas
+    # Normalizar longitud
     max_len = max(len(vals) for vals in resultados.values())
     for ref in referencias:
         while len(resultados[ref]) < max_len:
@@ -64,16 +67,15 @@ async def procesar_pdf(
     wb = Workbook()
     ws = wb.active
     ws.title = "Resultados"
-
-    # Escribir encabezados
     ws.append(referencias)
-
-    # Escribir filas
     for fila in zip(*[resultados[ref] for ref in referencias]):
         ws.append(list(fila))
 
-    # Guardar archivo Excel
-    excel_path = f"/tmp/resultado_{uuid.uuid4().hex}.xlsx"
-    wb.save(excel_path)
+    output_path = f"/tmp/resultado_{uuid.uuid4().hex}.xlsx"
+    wb.save(output_path)
 
-    return FileResponse(excel_path, filename="resultado.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    return FileResponse(
+        output_path,
+        filename="resultado.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
