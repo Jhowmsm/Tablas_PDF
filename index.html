@@ -2,41 +2,79 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Extractor de columnas PDF</title>
+  <title>Extractor de Columnas PDF</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f6f8;
+      padding: 40px;
+      text-align: center;
+    }
+    h2 {
+      color: #333;
+    }
+    .upload-box {
+      border: 3px dashed #4a90e2;
+      border-radius: 12px;
+      padding: 30px;
+      background-color: #eaf1fb;
+      max-width: 500px;
+      margin: auto;
+      margin-bottom: 30px;
+    }
+    .upload-box input[type="file"] {
+      margin-top: 10px;
+    }
+    textarea {
+      width: 100%;
+      max-width: 500px;
+      height: 100px;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      margin-bottom: 20px;
+    }
+    button {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #357ABD;
+    }
+    #estado {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-  <h2>Sube un PDF y escribe las columnas a extraer</h2>
-  
-  <input type="file" id="fileInput" /><br><br>
-  <label for="numColumnas">¿Cuántas columnas deseas extraer?</label>
-  <input type="number" id="numColumnas" min="1" max="10" value="1" /><br><br>
-  <button onclick="generarInputs()">Generar campos</button><br><br>
+  <h2>Extraer columnas de un PDF usando palabras clave</h2>
 
-  <div id="inputsContainer"></div>
-  <button onclick="subir()">Procesar</button>
-  
+  <div class="upload-box">
+    <p><strong>1. Sube tu archivo PDF</strong></p>
+    <input type="file" id="fileInput" />
+  </div>
+
+  <p><strong>2. Escribe o pega las palabras clave (una por línea):</strong></p>
+  <textarea id="keywords" placeholder="Ejemplo:\nSituación Admva.\nNombre/Razón Social\nNIF/CIF"></textarea>
+
+  <button onclick="subir()">Procesar PDF</button>
+
   <p id="estado"></p>
 
   <script>
-    function generarInputs() {
-      const container = document.getElementById("inputsContainer");
-      container.innerHTML = ""; // Limpiar
-      const num = parseInt(document.getElementById("numColumnas").value);
-      for (let i = 0; i < num; i++) {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.placeholder = `Referencia columna ${i + 1}`;
-        input.className = "referencia";
-        input.required = true;
-        container.appendChild(input);
-        container.appendChild(document.createElement("br"));
-      }
-    }
-
     async function subir() {
       const file = document.getElementById('fileInput').files[0];
-      const referencias = [...document.querySelectorAll("input.referencia")].map(el => el.value.trim()).filter(Boolean);
-      if (!file || referencias.length === 0) return alert("Selecciona un archivo y escribe al menos una referencia.");
+      const rawText = document.getElementById("keywords").value.trim();
+      const referencias = rawText.split(/\n+/).map(str => str.trim()).filter(Boolean);
+
+      if (!file || referencias.length === 0) return alert("Sube un archivo y agrega al menos una palabra clave.");
 
       const formData = new FormData();
       formData.append("file", file);
@@ -55,11 +93,11 @@
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = "resultado.csv";
+          a.download = "resultado.xlsx";
           a.click();
-          document.getElementById("estado").innerText = "¡Procesado!";
+          document.getElementById("estado").innerText = "¡Procesado con éxito!";
         } else {
-          document.getElementById("estado").innerText = "Error al procesar.";
+          document.getElementById("estado").innerText = "Error al procesar el PDF.";
         }
       } catch (e) {
         document.getElementById("estado").innerText = "Error de conexión.";
