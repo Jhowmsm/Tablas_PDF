@@ -64,18 +64,12 @@
       font-weight: bold;
       cursor: pointer;
     }
-    .exclusiones-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.25rem;
-      margin-top: 0.25rem;
-    }
-    .exclusiones-list span {
-      background-color: #ef4444;
-      color: white;
-      padding: 0.25rem 0.5rem;
-      border-radius: 6px;
-      font-size: 0.8rem;
+    .columna-container {
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
     }
   </style>
 </head>
@@ -98,9 +92,9 @@
   <div class="section">
     <label>Palabras clave sugeridas:</label>
     <div class="referencias-box" id="sugerencias">
-      <span onclick="agregarReferencia('Resultados Búsqueda')">Resultados Búsqueda</span>
+      <span onclick="agregarReferencia('Nombre')">Nombre</span>
       <span onclick="agregarReferencia('Situación Admva.')">Situación Admva.</span>
-      <span onclick="agregarReferencia('Nombre/Razón Social')">Nombre/Razón Social</span>
+      <span onclick="agregarReferencia('Nombre/Razón Social')">Razón Social</span>
       <span onclick="agregarReferencia('NIF/CIF')">NIF/CIF</span>
     </div>
   </div>
@@ -115,45 +109,14 @@
       const num = parseInt(document.getElementById("numColumnas").value);
       for (let i = 0; i < num; i++) {
         const div = document.createElement("div");
-
-        const label = document.createElement("label");
-        label.textContent = `Columna ${i + 1}`;
-        div.appendChild(label);
-
-        const input = document.createElement("input");
-        input.type = "text";
-        input.placeholder = `Referencia columna ${i + 1}`;
-        input.className = "referencia";
-        input.required = true;
-        div.appendChild(input);
-
-        const exclLabel = document.createElement("label");
-        exclLabel.textContent = "Valores a excluir (uno por uno, presiona Enter):";
-        div.appendChild(exclLabel);
-
-        const exclInput = document.createElement("input");
-        exclInput.type = "text";
-        exclInput.placeholder = "Escribe un valor y presiona Enter";
-        exclInput.className = "exclusion";
-        exclInput.addEventListener("keydown", function (e) {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            if (exclInput.value.trim()) {
-              const span = document.createElement("span");
-              span.textContent = exclInput.value.trim();
-              exclList.appendChild(span);
-              exclInput.value = "";
-            }
-          }
-        });
-        div.appendChild(exclInput);
-
-        const exclList = document.createElement("div");
-        exclList.className = "exclusiones-list";
-        div.appendChild(exclList);
-
+        div.className = "columna-container";
+        div.innerHTML = `
+          <label>Referencia columna ${i + 1}</label>
+          <input type="text" class="referencia" placeholder="Ej: Nombre" required>
+          <label>Valores a excluir (separados por coma)</label>
+          <input type="text" class="excluir" placeholder="Ej: N/D, Vacío">
+        `;
         container.appendChild(div);
-        container.appendChild(document.createElement("hr"));
       }
     }
 
@@ -169,17 +132,20 @@
 
     async function subir() {
       const file = document.getElementById('fileInput').files[0];
-      const referencias = [...document.querySelectorAll("input.referencia")].map(el => el.value.trim()).filter(Boolean);
-      const exclusiones = [...document.querySelectorAll(".exclusiones-list")].map(list =>
-        [...list.children].map(span => span.textContent)
-      );
+      const referencias = [];
+      const bloques = document.querySelectorAll(".columna-container");
+
+      bloques.forEach(bloque => {
+        const ref = bloque.querySelector(".referencia").value.trim();
+        const excluir = bloque.querySelector(".excluir").value.trim().split(",").map(e => e.trim()).filter(Boolean);
+        if (ref) referencias.push({ nombre: ref, excluir });
+      });
 
       if (!file || referencias.length === 0) return alert("Selecciona un archivo y completa las referencias.");
 
       const formData = new FormData();
       formData.append("file", file);
       formData.append("referencias", JSON.stringify(referencias));
-      formData.append("exclusiones", JSON.stringify(exclusiones));
 
       document.getElementById("estado").innerText = "Procesando...";
 
