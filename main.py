@@ -1,7 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict
 import fitz  # PyMuPDF
 import os
 import uuid
@@ -11,7 +10,7 @@ from openpyxl import Workbook
 
 app = FastAPI()
 
-# CORS para frontend en GitHub Pages
+# CORS para GitHub Pages
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://jhowmsm.github.io"],
@@ -24,7 +23,7 @@ app.add_middleware(
 async def procesar_pdf(
     file: UploadFile = File(...),
     referencias: str = Form(...),
-    exclusiones: str = Form("{}")  # Diccionario en formato JSON con exclusiones
+    exclusiones: str = Form("{}")
 ):
     try:
         referencias = json.loads(referencias)
@@ -37,11 +36,13 @@ async def procesar_pdf(
     filename = file.filename
     temp_pdf = f"/tmp/{filename}"
 
-    # Guardar archivo temporalmente
     with open(temp_pdf, "wb") as f:
         f.write(await file.read())
 
-    # Procesar PDF
+    # Buscar texto y NIEs
+    nie_patron = re.compile(r"[XY]\d{7}W")
+    nie_encontrados = set()
+
     with fitz.open(temp_pdf) as doc:
         for pagina in doc:
             bloques = pagina.get_text("dict")["blocks"]
@@ -57,16 +58,10 @@ async def procesar_pdf(
                             if ref in columna_x and abs(x - columna_x[ref]) <= 5:
                                 if texto not in exclusiones.get(ref, []):
                                     resultados[ref].append(texto)
+                                    if ref == "NIF/CIF" and nie_patron.fullmatch(texto):
+                                        nie_encontrados.add(texto)
 
-    # Detectar códigos tipo NIE/NIF en columna "NIF/CIF"
-    nie_patron = re.compile(r"[XY]\d{7}W")
-    nie_encontrados = set()
-    if "NIF/CIF" in resultados:
-        for valor in resultados["NIF/CIF"]:
-            if nie_patron.fullmatch(valor):
-                nie_encontrados.add(valor)
-
-    # Normalizar longitud
+    # Normalizar columnas
     max_len = max(len(vals) for vals in resultados.values())
     for ref in referencias:
         while len(resultados[ref]) < max_len:
@@ -74,23 +69,25 @@ async def procesar_pdf(
 
     # Crear Excel
     wb = Workbook()
-    ws = wb.active
-    ws.title = "Resultados"
-    ws.append(referencias)
+    ws1 = wb.active
+    ws1.title = "Resultados"
+    ws1.append(referencias)
     for fila in zip(*[resultados[ref] for ref in referencias]):
-        ws.append(list(fila))
+        ws1.append(list(fila))
+
+    # Hoja de advertencias si hay NIEs
+    if nie_encontrados:
+        ws2 = wb.create_sheet("Advertencias_NIE")
+        ws2.append(["Advertencia"])
+        ws2.append(["¡Cuidado con estos NIE/NIF! Podrían no estar presentes en el Excel."])
+        for nie in sorted(nie_encontrados):
+            ws2.append([nie])
 
     output_path = f"/tmp/resultado_{uuid.uuid4().hex}.xlsx"
     wb.save(output_path)
 
-    headers = {}
-    if nie_encontrados:
-        advertencia = "¡Cuidado con estos NIE/NIF! Podrían no estar presentes en el Excel: " + ", ".join(sorted(nie_encontrados))
-        headers["X-NIE-WARNINGS"] = advertencia
-
     return FileResponse(
         output_path,
         filename="resultado.xlsx",
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers=headers
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
