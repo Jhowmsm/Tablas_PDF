@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
+from openpyxl import Workbook
 import fitz  # PyMuPDF
 import csv
 import os
@@ -57,10 +58,18 @@ async def procesar_pdf(
         while len(resultados[ref]) < max_len:
             resultados[ref].append("")
 
-    csv_path = f"/tmp/resultado_{uuid.uuid4().hex}.csv"
-    with open(csv_path, mode='w', newline='', encoding='utf-8-sig') as f:
-        writer = csv.writer(f)
-        writer.writerow(referencias)
-        writer.writerows(zip(*[resultados[ref] for ref in referencias]))
+    excel_path = f"/tmp/resultado_{uuid.uuid4().hex}.xlsx"
+    wb = Workbook()
+    ws = wb.active
 
-    return FileResponse(csv_path, filename="resultado.csv", media_type="text/csv")
+    # Escribir encabezados
+    ws.append(referencias)
+
+    # Escribir filas
+    filas = zip(*[resultados[ref] for ref in referencias])
+    for fila in filas:
+        ws.append(fila)
+
+    wb.save(excel_path)
+
+    return FileResponse(excel_path, filename="resultado.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
