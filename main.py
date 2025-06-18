@@ -99,7 +99,7 @@ async def procesar_pdf(
 
         # Aplicar color solo si columna es "Nombre/Razón Social" y ancho sospechoso
         for col_idx, ref in enumerate(referencias):
-            if ref == "Nombre/Razón Social" and coordenadas_textos[ref][i] >= 190:
+            if ref == "Nombre/Razón Social" and coordenadas_textos[ref][i] >=134.28:
                 ws.cell(row=ws.max_row, column=col_idx + 1).fill = amarillo
 
     if nie_encontrados:
