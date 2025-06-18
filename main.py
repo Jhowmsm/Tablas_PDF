@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Dict
 import fitz  # PyMuPDF
 import os
 import uuid
@@ -10,7 +11,6 @@ from openpyxl import Workbook
 
 app = FastAPI()
 
-# CORS para GitHub Pages
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://jhowmsm.github.io"],
@@ -33,15 +33,14 @@ async def procesar_pdf(
 
     columna_x = {}
     resultados = {ref: [] for ref in referencias}
+    nie_encontrados = set()
+    nie_patron = re.compile(r"[XY]\d{7}W")
+
     filename = file.filename
     temp_pdf = f"/tmp/{filename}"
 
     with open(temp_pdf, "wb") as f:
         f.write(await file.read())
-
-    # Buscar texto y NIEs
-    nie_patron = re.compile(r"[XY]\d{7}W")
-    nie_encontrados = set()
 
     with fitz.open(temp_pdf) as doc:
         for pagina in doc:
@@ -61,13 +60,11 @@ async def procesar_pdf(
                                     if ref == "NIF/CIF" and nie_patron.fullmatch(texto):
                                         nie_encontrados.add(texto)
 
-    # Normalizar columnas
     max_len = max(len(vals) for vals in resultados.values())
     for ref in referencias:
         while len(resultados[ref]) < max_len:
             resultados[ref].append("")
 
-    # Crear Excel
     wb = Workbook()
     ws1 = wb.active
     ws1.title = "Resultados"
@@ -75,13 +72,13 @@ async def procesar_pdf(
     for fila in zip(*[resultados[ref] for ref in referencias]):
         ws1.append(list(fila))
 
-    # Hoja de advertencias si hay NIEs
+    ws2 = wb.create_sheet("Advertencias")
     if nie_encontrados:
-        ws2 = wb.create_sheet("Advertencias_NIE")
-        ws2.append(["Advertencia"])
-        ws2.append(["¡Cuidado con estos NIE/NIF! Podrían no estar presentes en el Excel."])
-        for nie in sorted(nie_encontrados):
-            ws2.append([nie])
+        ws2.append(["Advertencia sobre NIE/NIF"])
+        for item in sorted(nie_encontrados):
+            ws2.append([item])
+    else:
+        ws2.append(["No se encontraron NIE/NIF con patrón [XY]dddddddW."])
 
     output_path = f"/tmp/resultado_{uuid.uuid4().hex}.xlsx"
     wb.save(output_path)
