@@ -4,7 +4,17 @@ import fitz  # PyMuPDF
 import csv
 import os
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://jhowmsm.github.io"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/procesar/")
 async def procesar_pdf(file: UploadFile = File(...)):
