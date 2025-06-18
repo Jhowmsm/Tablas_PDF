@@ -74,17 +74,24 @@
       font-weight: bold;
       cursor: pointer;
     }
-    .columna-container {
+  .columna-container {
       background: #fff;
       border: 1px solid #ccc;
       padding: 1rem;
       border-radius: 8px;
       margin-bottom: 1rem;
-      width: 100%;
+      width: calc(48%); /* Para que entren dos por fila sin montarse */
+      box-sizing: border-box;
     }
     #inputsWrapper {
       display: flex;
       gap: 2rem;
+    }
+    #inputsContainer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem; /* ESPACIO entre columnas */
+      justify-content: space-between; /* Distribuye bien */
     }
     #leftColumn, #rightColumn {
       flex: 1;
