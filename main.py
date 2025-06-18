@@ -24,11 +24,10 @@ async def procesar_pdf(
     referencias: str = Form(...)
 ):
     try:
-        referencias = json.loads(referencias)
+        referencias = json.loads(referencias)  # ✅ Solo una vez
     except Exception as e:
-        return {"error": "No se pudo leer las referencias"}
-    
-    referencias = json.loads(referencias)  # Convierte string JSON a lista
+        return {"error": f"No se pudo leer las referencias: {str(e)}"}
+
     columna_x = {}
     resultados = {ref: [] for ref in referencias}
     filename = file.filename
