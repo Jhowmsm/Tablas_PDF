@@ -20,6 +20,7 @@
       padding: 1.5rem;
       text-align: center;
       margin-bottom: 1.5rem;
+      position: relative;
     }
     .uploader input[type="file"] {
       display: none;
@@ -31,6 +32,11 @@
       color: white;
       border-radius: 8px;
       cursor: pointer;
+    }
+    .file-name {
+      margin-top: 1rem;
+      font-style: italic;
+      color: #555;
     }
     .section {
       margin-bottom: 1.5rem;
@@ -70,12 +76,14 @@
       padding: 1rem;
       border-radius: 8px;
       margin-bottom: 1rem;
-      flex: 1 1 calc(50% - 1rem);
+      width: 100%;
     }
-    #inputsContainer {
+    #inputsWrapper {
       display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
+      gap: 2rem;
+    }
+    #leftColumn, #rightColumn {
+      flex: 1;
     }
     #alerta-nie {
       background: #fff3cd;
@@ -92,7 +100,8 @@
 
   <div class="uploader">
     <label for="fileInput">Seleccionar PDF</label>
-    <input type="file" id="fileInput">
+    <input type="file" id="fileInput" onchange="mostrarNombreArchivo()">
+    <div id="fileName" class="file-name"></div>
   </div>
 
   <div class="section">
@@ -101,7 +110,10 @@
     <button onclick="generarInputs()">Generar campos</button>
   </div>
 
-  <div class="section" id="inputsContainer"></div>
+  <div class="section" id="inputsWrapper">
+    <div id="leftColumn"></div>
+    <div id="rightColumn"></div>
+  </div>
 
   <div class="section">
     <label>Palabras clave sugeridas:</label>
@@ -122,10 +134,21 @@
   <p id="estado"></p>
 
   <script>
+    function mostrarNombreArchivo() {
+      const file = document.getElementById('fileInput').files[0];
+      const nameBox = document.getElementById('fileName');
+      nameBox.textContent = file ? `Archivo seleccionado: ${file.name}` : "";
+    }
+
     function generarInputs() {
-      const container = document.getElementById("inputsContainer");
-      container.innerHTML = "";
+      const left = document.getElementById("leftColumn");
+      const right = document.getElementById("rightColumn");
+      left.innerHTML = "";
+      right.innerHTML = "";
+
       const num = parseInt(document.getElementById("numColumnas").value);
+      const mitad = Math.ceil(num / 2);
+
       for (let i = 0; i < num; i++) {
         const div = document.createElement("div");
         div.className = "columna-container";
@@ -135,7 +158,11 @@
           <label>Valores a excluir (separados por coma)</label>
           <input type="text" class="excluir" placeholder="Ej: N/D, Vacío">
         `;
-        container.appendChild(div);
+        if (i < mitad) {
+          left.appendChild(div);
+        } else {
+          right.appendChild(div);
+        }
       }
     }
 
