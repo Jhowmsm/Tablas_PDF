@@ -1,13 +1,14 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import fitz  # PyMuPDF
 import csv
 import os
-
-from fastapi.middleware.cors import CORSMiddleware
+import uuid
 
 app = FastAPI()
 
+# Habilita CORS para GitHub Pages
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://jhowmsm.github.io"],
@@ -17,29 +18,18 @@ app.add_middleware(
 )
 
 @app.post("/procesar/")
-async def procesar_pdf(file: UploadFile = File(...)):
+async def procesar_pdf(
+    file: UploadFile = File(...),
+    referencia: str = Form(...)
+):
     filename = file.filename
     temp_pdf = f"/tmp/{filename}"
 
     with open(temp_pdf, "wb") as f:
         f.write(await file.read())
 
-    referencias = [
-        "Resultado Búsqueda",
-        "Situación Admva.",
-        "Nombre/Razón Social",
-        "NIF/CIF"
-    ]
-
-    palabras_ignoradas = {
-        "Resultado Búsqueda": ["Resultado Búsqueda", "Total", "Resultado"],
-        "Situación Admva.": ["Situación Admva.", "Verificado", "Pendiente"],
-        "Nombre/Razón Social": ["Nombre/Razón Social", "Cliente", "Empresa"],
-        "NIF/CIF": ["NIF/CIF", "Identificación", "Documento"]
-    }
-
-    columna_x = {}
-    resultados = {ref: [] for ref in referencias}
+    columna_x = None
+    resultados = []
 
     with fitz.open(temp_pdf) as doc:
         for pagina in doc:
@@ -50,18 +40,15 @@ async def procesar_pdf(file: UploadFile = File(...)):
                         texto = span["text"].strip()
                         x = span["bbox"][0]
 
-                        for ref in referencias:
-                            if ref in texto and ref not in columna_x:
-                                columna_x[ref] = x
-                            if ref in columna_x and abs(x - columna_x[ref]) <= 5:
-                                if texto not in palabras_ignoradas[ref]:
-                                    resultados[ref].append(texto)
+                        if referencia in texto and columna_x is None:
+                            columna_x = x
+                        if columna_x is not None and abs(x - columna_x) <= 5:
+                            resultados.append([texto])
 
-    csv_path = f"/tmp/resultados.csv"
+    csv_path = f"/tmp/resultado_{uuid.uuid4().hex}.csv"
     with open(csv_path, mode='w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(referencias)
-        filas = list(zip(*[resultados[ref] for ref in referencias]))
-        writer.writerows(filas)
+        writer.writerow(["Valores de la columna"])
+        writer.writerows(resultados)
 
     return FileResponse(csv_path, filename="resultado.csv", media_type="text/csv")
