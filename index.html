@@ -2,79 +2,128 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Extractor de Columnas PDF</title>
+  <title>Extractor de columnas PDF</title>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #f4f6f8;
-      padding: 40px;
-      text-align: center;
-    }
-    h2 {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      padding: 2rem;
       color: #333;
     }
-    .upload-box {
-      border: 3px dashed #4a90e2;
+    h2 {
+      text-align: center;
+    }
+    .uploader {
+      border: 2px dashed #3b82f6;
       border-radius: 12px;
-      padding: 30px;
-      background-color: #eaf1fb;
-      max-width: 500px;
-      margin: auto;
-      margin-bottom: 30px;
+      background: #e0f2fe;
+      padding: 1.5rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
     }
-    .upload-box input[type="file"] {
-      margin-top: 10px;
+    .uploader input[type="file"] {
+      display: none;
     }
-    textarea {
-      width: 100%;
-      max-width: 500px;
-      height: 100px;
-      border-radius: 8px;
-      padding: 10px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      margin-bottom: 20px;
-    }
-    button {
-      background-color: #4a90e2;
+    .uploader label {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background-color: #3b82f6;
       color: white;
-      border: none;
-      padding: 10px 20px;
-      font-size: 16px;
       border-radius: 8px;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #357ABD;
+    .section {
+      margin-bottom: 1.5rem;
     }
-    #estado {
-      margin-top: 20px;
+    input, textarea {
+      padding: 0.5rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      width: 100%;
+      margin-top: 0.5rem;
+    }
+    button {
+      padding: 0.75rem 1.5rem;
+      background-color: #10b981;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .referencias-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .referencias-box span {
+      background-color: #facc15;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
       font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h2>Extraer columnas de un PDF usando palabras clave</h2>
+  <h2>Extractor de columnas desde PDF</h2>
 
-  <div class="upload-box">
-    <p><strong>1. Sube tu archivo PDF</strong></p>
-    <input type="file" id="fileInput" />
+  <div class="uploader">
+    <label for="fileInput">Seleccionar PDF</label>
+    <input type="file" id="fileInput">
   </div>
 
-  <p><strong>2. Escribe o pega las palabras clave (una por línea):</strong></p>
-  <textarea id="keywords" placeholder="Ejemplo:\nSituación Admva.\nNombre/Razón Social\nNIF/CIF"></textarea>
+  <div class="section">
+    <label for="numColumnas">¿Cuántas columnas deseas extraer?</label>
+    <input type="number" id="numColumnas" min="1" max="10" value="1">
+    <button onclick="generarInputs()">Generar campos</button>
+  </div>
+
+  <div class="section" id="inputsContainer"></div>
+
+  <div class="section">
+    <label>Palabras clave sugeridas:</label>
+    <div class="referencias-box" id="sugerencias">
+      <span onclick="agregarReferencia('Nombre')">Nombre</span>
+      <span onclick="agregarReferencia('NIF/CIF')">NIF/CIF</span>
+      <span onclick="agregarReferencia('Situación Admva.')">Situación Admva.</span>
+      <span onclick="agregarReferencia('Resultado Búsqueda')">Resultado Búsqueda</span>
+    </div>
+  </div>
 
   <button onclick="subir()">Procesar PDF</button>
-
   <p id="estado"></p>
 
   <script>
+    function generarInputs() {
+      const container = document.getElementById("inputsContainer");
+      container.innerHTML = "";
+      const num = parseInt(document.getElementById("numColumnas").value);
+      for (let i = 0; i < num; i++) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = `Referencia columna ${i + 1}`;
+        input.className = "referencia";
+        input.required = true;
+        container.appendChild(input);
+        container.appendChild(document.createElement("br"));
+      }
+    }
+
+    function agregarReferencia(valor) {
+      const inputs = document.querySelectorAll("input.referencia");
+      for (let i = 0; i < inputs.length; i++) {
+        if (!inputs[i].value) {
+          inputs[i].value = valor;
+          return;
+        }
+      }
+    }
+
     async function subir() {
       const file = document.getElementById('fileInput').files[0];
-      const rawText = document.getElementById("keywords").value.trim();
-      const referencias = rawText.split(/\n+/).map(str => str.trim()).filter(Boolean);
-
-      if (!file || referencias.length === 0) return alert("Sube un archivo y agrega al menos una palabra clave.");
+      const referencias = [...document.querySelectorAll("input.referencia")].map(el => el.value.trim()).filter(Boolean);
+      if (!file || referencias.length === 0) return alert("Selecciona un archivo y completa las referencias.");
 
       const formData = new FormData();
       formData.append("file", file);
@@ -97,7 +146,7 @@
           a.click();
           document.getElementById("estado").innerText = "¡Procesado con éxito!";
         } else {
-          document.getElementById("estado").innerText = "Error al procesar el PDF.";
+          document.getElementById("estado").innerText = "Error al procesar.";
         }
       } catch (e) {
         document.getElementById("estado").innerText = "Error de conexión.";
