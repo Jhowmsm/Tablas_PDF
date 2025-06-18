@@ -64,23 +64,26 @@
       font-weight: bold;
       cursor: pointer;
     }
-    .inputs-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
     .columna-container {
       background: #fff;
       border: 1px solid #ccc;
       padding: 1rem;
       border-radius: 8px;
-      width: calc(50% - 1rem);
-      box-sizing: border-box;
+      margin-bottom: 1rem;
+      flex: 1 1 calc(50% - 1rem);
     }
-    @media (max-width: 768px) {
-      .columna-container {
-        width: 100%;
-      }
+    #inputsContainer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    #alerta-nie {
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      color: #856404;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
     }
   </style>
 </head>
@@ -98,7 +101,7 @@
     <button onclick="generarInputs()">Generar campos</button>
   </div>
 
-  <div class="section inputs-grid" id="inputsContainer"></div>
+  <div class="section" id="inputsContainer"></div>
 
   <div class="section">
     <label>Palabras clave sugeridas:</label>
@@ -111,8 +114,9 @@
   </div>
 
   <div class="section">
-  <label for="mensajeExtra">lalalalaaaaaalalala</label>
-  <textarea id="mensajeExtra" rows="4" placeholder="Aquí puedes escribir algo..."></textarea>
+    <label for="infoExtra">lalalalalalalalala</label>
+    <textarea id="infoExtra" rows="2"></textarea>
+    <div id="alerta-nie" style="display: none;"></div>
   </div>
 
   <button onclick="subir()">Procesar PDF</button>
@@ -178,6 +182,14 @@
 
         if (response.ok) {
           const blob = await response.blob();
+          const nieHeader = response.headers.get("X-NIE-WARNINGS");
+          if (nieHeader) {
+            document.getElementById("alerta-nie").style.display = "block";
+            document.getElementById("alerta-nie").innerText = "⚠️ Cuidado: Se encontraron NIE/NIF no presentes en el Excel generado: " + nieHeader;
+          } else {
+            document.getElementById("alerta-nie").style.display = "none";
+          }
+
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;

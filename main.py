@@ -1,11 +1,12 @@
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict
 import fitz  # PyMuPDF
 import os
 import uuid
 import json
+import re
 from openpyxl import Workbook
 
 app = FastAPI()
@@ -57,6 +58,14 @@ async def procesar_pdf(
                                 if texto not in exclusiones.get(ref, []):
                                     resultados[ref].append(texto)
 
+    # Detectar códigos tipo NIE/NIF en columna "NIF/CIF"
+    nie_patron = re.compile(r"[XY]\d{7}W")
+    nie_encontrados = set()
+    if "NIF/CIF" in resultados:
+        for valor in resultados["NIF/CIF"]:
+            if nie_patron.fullmatch(valor):
+                nie_encontrados.add(valor)
+
     # Normalizar longitud
     max_len = max(len(vals) for vals in resultados.values())
     for ref in referencias:
@@ -74,8 +83,14 @@ async def procesar_pdf(
     output_path = f"/tmp/resultado_{uuid.uuid4().hex}.xlsx"
     wb.save(output_path)
 
+    headers = {}
+    if nie_encontrados:
+        advertencia = "¡Cuidado con estos NIE/NIF! Podrían no estar presentes en el Excel: " + ", ".join(sorted(nie_encontrados))
+        headers["X-NIE-WARNINGS"] = advertencia
+
     return FileResponse(
         output_path,
         filename="resultado.xlsx",
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers
     )
