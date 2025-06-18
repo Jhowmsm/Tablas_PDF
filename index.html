@@ -5,42 +5,38 @@
   <title>Extractor de columnas PDF</title>
 </head>
 <body>
-  <h2>Sube un PDF y selecciona cuántas columnas deseas extraer</h2>
-
+  <h2>Sube un PDF y escribe las columnas a extraer</h2>
+  
   <input type="file" id="fileInput" /><br><br>
+  <label for="numColumnas">¿Cuántas columnas deseas extraer?</label>
+  <input type="number" id="numColumnas" min="1" max="10" value="1" /><br><br>
+  <button onclick="generarInputs()">Generar campos</button><br><br>
 
-  <label for="numColumnas">¿Cuántas columnas quieres extraer?</label><br>
-  <input type="number" id="numColumnas" min="1" max="10" value="1" />
-  <button onclick="generarCampos()">Generar campos</button><br><br>
-
-  <div id="camposReferencias"></div><br>
-
+  <div id="inputsContainer"></div>
   <button onclick="subir()">Procesar</button>
+  
   <p id="estado"></p>
 
   <script>
-    function generarCampos() {
-      const num = parseInt(document.getElementById('numColumnas').value);
-      const contenedor = document.getElementById('camposReferencias');
-      contenedor.innerHTML = "";
-
+    function generarInputs() {
+      const container = document.getElementById("inputsContainer");
+      container.innerHTML = ""; // Limpiar
+      const num = parseInt(document.getElementById("numColumnas").value);
       for (let i = 0; i < num; i++) {
         const input = document.createElement("input");
         input.type = "text";
         input.placeholder = `Referencia columna ${i + 1}`;
-        input.name = "referencia";
+        input.className = "referencia";
         input.required = true;
-        contenedor.appendChild(input);
-        contenedor.appendChild(document.createElement("br"));
+        container.appendChild(input);
+        container.appendChild(document.createElement("br"));
       }
     }
 
     async function subir() {
       const file = document.getElementById('fileInput').files[0];
-      const referencias = [...document.querySelectorAll("input[name='referencia']")].map(el => el.value.trim());
-      if (!file || referencias.some(ref => !ref)) {
-        return alert("Selecciona un archivo e ingresa todas las referencias.");
-      }
+      const referencias = [...document.querySelectorAll("input.referencia")].map(el => el.value.trim()).filter(Boolean);
+      if (!file || referencias.length === 0) return alert("Selecciona un archivo y escribe al menos una referencia.");
 
       const formData = new FormData();
       formData.append("file", file);
