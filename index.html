@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Extractor de columnas PDF</title>
+</head>
+<body>
+  <h2>Extractor de columnas desde PDF</h2>
+  <input type="file" id="pdfInput" accept="application/pdf" />
+  <br><br>
+  <button onclick="procesarPDF()">Procesar PDF</button>
+  <br><br>
+  <a id="downloadLink" style="display:none">Descargar CSV</a>
+
+  <script type="module">
+    import { PDFDocument } from 'https://cdn.skypack.dev/pdf-lib';
+
+    const referencias = [
+      "Resultado Búsqueda",
+      "Situación Admva.",
+      "Nombre/Razón Social",
+      "NIF/CIF"
+    ];
+
+    const palabrasIgnoradas = {
+      "Resultado Búsqueda": ["Resultado Búsqueda", "Total", "Resultado"],
+      "Situación Admva.": ["Situación Admva.", "Verificado", "Pendiente"],
+      "Nombre/Razón Social": ["Nombre/Razón Social", "Cliente", "Empresa"],
+      "NIF/CIF": ["NIF/CIF", "Identificación", "Documento"]
+    };
+
+    const tolerancia = 15; // más alto = más flexible para alinear columnas
+
+    async function procesarPDF() {
+      const fileInput = document.getElementById('pdfInput');
+      const file = fileInput.files[0];
+      if (!file) return alert("Sube un archivo PDF.");
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pages = pdfDoc.getPages();
+
+      const resultados = {};
+      referencias.forEach(ref => resultados[ref] = []);
+      const columnasX = {};
+
+      for (let page of pages) {
+        const textContent = await page.getTextContent?.() || [];
+        const items = textContent.items || [];
+
+        for (let item of items) {
+          const texto = item.str.trim();
+          const x = item.transform ? item.transform[4] : 0;
+
+          for (let ref of referencias) {
+            if (texto.includes(ref) && !columnasX[ref]) {
+              columnasX[ref] = x;
+            }
+
+            if (columnasX[ref] !== undefined && Math.abs(x - columnasX[ref]) <= tolerancia) {
+              if (!palabrasIgnoradas[ref].includes(texto)) {
+                resultados[ref].push(texto);
+              }
+            }
+          }
+        }
+      }
+
+      // Armar CSV
+      const csvRows = [referencias.join(",")];
+      const maxFilas = Math.max(...referencias.map(ref => resultados[ref].length));
+
+      for (let i = 0; i < maxFilas; i++) {
+        const fila = referencias.map(ref => `"${resultados[ref][i] || ''}"`);
+        csvRows.push(fila.join(","));
+      }
+
+      const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const link = document.getElementById('downloadLink');
+      link.href = url;
+      link.download = "resultado.csv";
+      link.style.display = "inline";
+      link.textContent = "Descargar resultado CSV";
+    }
+  </script>
+</body>
+</html>
