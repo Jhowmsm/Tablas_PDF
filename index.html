@@ -5,36 +5,44 @@
   <title>Extractor de columnas PDF</title>
 </head>
 <body>
-  <h2>Sube un PDF para extraer columnas</h2>
-  <input type="file" id="fileInput" />
+  <h2>Sube un PDF y escribe la columna que deseas extraer</h2>
+  <input type="file" id="fileInput" /><br><br>
+  <input type="text" id="referencia" placeholder="Ej: Situación Admva." /><br><br>
   <button onclick="subir()">Procesar</button>
   <p id="estado"></p>
+
   <script>
     async function subir() {
-      const fileInput = document.getElementById('fileInput');
-      const file = fileInput.files[0];
-      if (!file) return alert("Selecciona un archivo");
+      const file = document.getElementById('fileInput').files[0];
+      const referencia = document.getElementById('referencia').value;
+      if (!file || !referencia) return alert("Selecciona un archivo y escribe una referencia.");
 
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("referencia", referencia);
 
       document.getElementById("estado").innerText = "Procesando...";
 
-      const response = await fetch("https://tablas-pdf.onrender.com/procesar/", {
-        method: "POST",
-        body: formData
-      });
+      try {
+        const response = await fetch("https://tablas-pdf.onrender.com/procesar/", {
+          method: "POST",
+          body: formData
+        });
 
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "resultado.csv";
-        a.click();
-        document.getElementById("estado").innerText = "¡Procesado!";
-      } else {
-        document.getElementById("estado").innerText = "Error al procesar.";
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "resultado.csv";
+          a.click();
+          document.getElementById("estado").innerText = "¡Procesado!";
+        } else {
+          document.getElementById("estado").innerText = "Error al procesar.";
+        }
+      } catch (e) {
+        document.getElementById("estado").innerText = "Error de conexión.";
+        console.error(e);
       }
     }
   </script>
